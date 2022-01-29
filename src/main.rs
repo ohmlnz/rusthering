@@ -1,4 +1,4 @@
-use image::{open, ImageBuffer, Rgb};
+use image::{open, Rgb};
 use std::env;
 
 fn main() {
@@ -6,38 +6,31 @@ fn main() {
     let image_path = &args[1];
     let destination_path = &args[2];
 
-    let selected_image = open(image_path).unwrap().into_rgb8();
-    let grayscaled = grayscale(selected_image);
-    let quantized = quantize(grayscaled);
-    quantized.save(destination_path).unwrap();
-}
+    let mut selected_image = open(image_path).unwrap().into_rgb8();
+    let mut buffer = image::ImageBuffer::new(selected_image.width(), selected_image.height());
 
-fn grayscale(mut image: ImageBuffer<Rgb<u8>, Vec<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
-    let mut buffer = image::ImageBuffer::new(image.width(), image.height());
-
-    for (x, y, og_pixel) in image.enumerate_pixels_mut() {
+    for (x, y, og_pixel) in selected_image.enumerate_pixels_mut() {
         let pixel = buffer.get_pixel_mut(x, y);
-        let grayscale: u8 = (0.2167 * og_pixel.0[0] as f32) as u8
-            + (0.7152 * og_pixel.0[1] as f32) as u8
-            + (0.0722 * og_pixel.0[2] as f32) as u8;
-        *pixel = image::Rgb([grayscale, grayscale, grayscale]);
+        *pixel = grayscale(og_pixel);
+        *pixel = quantize(pixel);
     }
 
-    buffer
+    buffer.save(destination_path).unwrap();
 }
 
-fn quantize(mut image: ImageBuffer<Rgb<u8>, Vec<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
-    let mut buffer = image::ImageBuffer::new(image.width(), image.height());
+fn grayscale(pixel: &mut Rgb<u8>) -> Rgb<u8> {
+    let grayscale: u8 = (0.2167 * pixel.0[0] as f32) as u8
+        + (0.7152 * pixel.0[1] as f32) as u8
+        + (0.0722 * pixel.0[2] as f32) as u8;
+    image::Rgb([grayscale, grayscale, grayscale])
+}
 
-    for (x, y, og_pixel) in image.enumerate_pixels_mut() {
-        let pixel = buffer.get_pixel_mut(x, y);
-
-        if og_pixel.0[0] < 128 {
-            *pixel = image::Rgb([0 as u8, 0 as u8, 0 as u8]);
-        } else {
-            *pixel = image::Rgb([255 as u8, 255 as u8, 255 as u8]);
-        }
+fn quantize(pixel: &mut Rgb<u8>) -> Rgb<u8> {
+    if pixel.0[0] < 128 {
+        return image::Rgb([0 as u8, 0 as u8, 0 as u8]);
+    } else {
+        return image::Rgb([255 as u8, 255 as u8, 255 as u8]);
     }
-
-    buffer
 }
+
+fn dither() {}
