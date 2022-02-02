@@ -2,8 +2,7 @@ use image::{open, ImageBuffer, Rgb};
 
 pub fn dithering(image_path: &str) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     let mut selected_image = open(image_path).unwrap().into_rgb8();
-    let mut destination_buffer: ImageBuffer<Rgb<u8>, Vec<u8>> =
-        ImageBuffer::new(selected_image.width(), selected_image.height());
+    let mut destination_buffer = ImageBuffer::new(selected_image.width(), selected_image.height());
     let image_width = selected_image.width() as i32;
     let image_height = selected_image.height() as i32;
 
@@ -11,7 +10,7 @@ pub fn dithering(image_path: &str) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
         for y in 0..image_height as u32 {
             let destination_pixel = destination_buffer.get_pixel_mut(x, y);
             let original_pixel = selected_image.get_pixel(x, y);
-            let quantized_pixel = multi_level_quantization(&original_pixel);
+            let quantized_pixel = multi_level_quantization(&original_pixel, 4.0);
 
             let quantization_errors: [i32; 3] = [
                 (original_pixel.0[0] as i32 - quantized_pixel.0[0] as i32),
@@ -55,15 +54,14 @@ pub fn dithering(image_path: &str) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     destination_buffer
 }
 
-fn _grayscale(pixel: &Rgb<u8>) -> Rgb<u8> {
+pub fn linear_grayscale(pixel: &Rgb<u8>) -> Rgb<u8> {
     let grayscale: u8 = (0.2167 * pixel.0[0] as f32) as u8
         + (0.7152 * pixel.0[1] as f32) as u8
         + (0.0722 * pixel.0[2] as f32) as u8;
     Rgb([grayscale, grayscale, grayscale])
 }
 
-fn multi_level_quantization(pixel: &Rgb<u8>) -> Rgb<u8> {
-    let levels = 1.0;
+pub fn multi_level_quantization(pixel: &Rgb<u8>, levels: f32) -> Rgb<u8> {
     let channel_red =
         (((pixel.0[0] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
     let channel_blue =
@@ -73,10 +71,35 @@ fn multi_level_quantization(pixel: &Rgb<u8>) -> Rgb<u8> {
     Rgb([channel_red as u8, channel_blue as u8, channel_green as u8])
 }
 
-fn _single_bit_quantization(pixel: &Rgb<u8>) -> Rgb<u8> {
-    if pixel.0[0] < 127 {
+pub fn single_bit_quantization(pixel: &Rgb<u8>) -> Rgb<u8> {
+    if pixel.0[0] as f32 / 255.0 < 0.5 {
         return Rgb([0 as u8, 0 as u8, 0 as u8]);
     } else {
         return Rgb([255 as u8, 255 as u8, 255 as u8]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_quantized_black_pixel() {
+        let black_pixel = single_bit_quantization(&Rgb([100, 0, 0]));
+        assert_eq!(black_pixel, Rgb([0, 0, 0]));
+    }
+
+    #[test]
+    fn get_quantized_white_pixel() {
+        let white_pixel = single_bit_quantization(&Rgb([128, 0, 0]));
+        assert_eq!(white_pixel, Rgb([255, 255, 255]));
+    }
+
+    #[test]
+    fn get_grayscale_pixel() {
+        let grayscale_pixel = linear_grayscale(&Rgb([140, 34, 45]));
+        assert_eq!(grayscale_pixel.0[0], grayscale_pixel.0[1]);
+        assert_eq!(grayscale_pixel.0[1], grayscale_pixel.0[2]);
+        assert_eq!(grayscale_pixel.0[0], grayscale_pixel.0[2]);
     }
 }
