@@ -1,5 +1,6 @@
 use image::{open, ImageBuffer, Rgb};
 use rand::Rng;
+
 pub struct Dithering {
     selected_image: ImageBuffer<Rgb<u8>, Vec<u8>>,
     destination_buffer: ImageBuffer<Rgb<u8>, Vec<u8>>,
@@ -22,115 +23,104 @@ impl Dithering {
         }
     }
 
-    pub fn floyd(&mut self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
-        let multi_level_quantize = |pixel: &Rgb<u8>, levels: f32| {
-            let channel_red =
-                (((pixel.0[0] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
-            let channel_blue =
-                (((pixel.0[1] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
-            let channel_green =
-                (((pixel.0[2] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
-            Rgb([channel_red as u8, channel_blue as u8, channel_green as u8])
-        };
-
+    pub fn dithering(&mut self, options: u8) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
         for x in 0..self.image_width as u32 {
             for y in 0..self.image_height as u32 {
                 let destination_pixel = self.destination_buffer.get_pixel_mut(x, y);
                 let original_pixel = self.selected_image.get_pixel(x, y);
+                let quantized_pixel: Rgb<u8>;
 
-                let quantized_pixel = multi_level_quantize(&original_pixel, 4.0);
-                let quantization_errors: [i32; 3] = [
-                    (original_pixel.0[0] as i32 - quantized_pixel.0[0] as i32),
-                    (original_pixel.0[1] as i32 - quantized_pixel.0[1] as i32),
-                    (original_pixel.0[2] as i32 - quantized_pixel.0[2] as i32),
-                ];
+                match options {
+                    1 => {
+                        quantized_pixel = Dithering::linear_grayscale(&original_pixel);
+                        *destination_pixel = quantized_pixel;
+                    }
+                    2 => {
+                        quantized_pixel = Dithering::threshold(&original_pixel, 127);
+                        *destination_pixel = quantized_pixel;
+                    }
+                    3 => {
+                        quantized_pixel = Dithering::threshold(&original_pixel, 0);
+                        *destination_pixel = quantized_pixel;
+                    }
+                    4 => {
+                        quantized_pixel = Dithering::floyd_steinberg(&original_pixel, 4.0);
+                        let quantization_errors: [i32; 3] = [
+                            (original_pixel.0[0] as i32 - quantized_pixel.0[0] as i32),
+                            (original_pixel.0[1] as i32 - quantized_pixel.0[1] as i32),
+                            (original_pixel.0[2] as i32 - quantized_pixel.0[2] as i32),
+                        ];
 
-                *destination_pixel = quantized_pixel;
+                        *destination_pixel = quantized_pixel;
 
-                let mut update_neighboring_pixel =
-                    |x_offset: i32, y_offset: i32, error_bias: f32| {
-                        if !(x as i32 + x_offset <= 0
-                            || y as i32 + y_offset <= 0
-                            || x as i32 + x_offset >= self.image_width
-                            || y as i32 + y_offset >= self.image_height)
-                        {
-                            let original_offset_pixel = self.selected_image.get_pixel_mut(
-                                (x as i32 + x_offset) as u32,
-                                (y as i32 + y_offset) as u32,
-                            );
+                        let mut update_neighboring_pixel =
+                            |x_offset: i32, y_offset: i32, error_bias: f32| {
+                                if !(x as i32 + x_offset <= 0
+                                    || y as i32 + y_offset <= 0
+                                    || x as i32 + x_offset >= self.image_width
+                                    || y as i32 + y_offset >= self.image_height)
+                                {
+                                    let original_offset_pixel = self.selected_image.get_pixel_mut(
+                                        (x as i32 + x_offset) as u32,
+                                        (y as i32 + y_offset) as u32,
+                                    );
 
-                            let channel_red = original_offset_pixel.0[0] as i32
-                                + ((quantization_errors[0] as f32) * error_bias) as i32;
-                            let channel_blue = original_offset_pixel.0[1] as i32
-                                + ((quantization_errors[1] as f32) * error_bias) as i32;
-                            let channel_green = original_offset_pixel.0[2] as i32
-                                + ((quantization_errors[2] as f32) * error_bias) as i32;
+                                    let channel_red = original_offset_pixel.0[0] as i32
+                                        + ((quantization_errors[0] as f32) * error_bias) as i32;
+                                    let channel_blue = original_offset_pixel.0[1] as i32
+                                        + ((quantization_errors[1] as f32) * error_bias) as i32;
+                                    let channel_green = original_offset_pixel.0[2] as i32
+                                        + ((quantization_errors[2] as f32) * error_bias) as i32;
 
-                            *original_offset_pixel = Rgb([
-                                channel_red.clamp(0, 255) as u8,
-                                channel_blue.clamp(0, 255) as u8,
-                                channel_green.clamp(0, 255) as u8,
-                            ]);
-                        }
-                    };
+                                    *original_offset_pixel = Rgb([
+                                        channel_red.clamp(0, 255) as u8,
+                                        channel_blue.clamp(0, 255) as u8,
+                                        channel_green.clamp(0, 255) as u8,
+                                    ]);
+                                }
+                            };
 
-                update_neighboring_pixel(1, 0, 7.0 / 16.0);
-                update_neighboring_pixel(-1, 1, 3.0 / 16.0);
-                update_neighboring_pixel(0, 1, 5.0 / 16.0);
-                update_neighboring_pixel(1, 1, 1.0 / 16.0);
-            }
-        }
-
-        &self.destination_buffer
-    }
-
-    pub fn linear_grayscale(&mut self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
-        let grayscale = |original_pixel: &Rgb<u8>| {
-            let grayscale: u8 = (0.2167 * original_pixel.0[0] as f32) as u8
-                + (0.7152 * original_pixel.0[1] as f32) as u8
-                + (0.0722 * original_pixel.0[2] as f32) as u8;
-            Rgb([grayscale, grayscale, grayscale])
-        };
-
-        for x in 0..self.image_width as u32 {
-            for y in 0..self.image_height as u32 {
-                let destination_pixel = self.destination_buffer.get_pixel_mut(x, y);
-                let original_pixel = self.selected_image.get_pixel(x, y);
-
-                let quantized_pixel = grayscale(&original_pixel);
-
-                *destination_pixel = quantized_pixel;
+                        update_neighboring_pixel(1, 0, 7.0 / 16.0);
+                        update_neighboring_pixel(-1, 1, 3.0 / 16.0);
+                        update_neighboring_pixel(0, 1, 5.0 / 16.0);
+                        update_neighboring_pixel(1, 1, 1.0 / 16.0);
+                    }
+                    _ => println!("Wrong input, try again."),
+                };
             }
         }
         &self.destination_buffer
     }
 
-    pub fn threshold(&mut self, threshold: u8) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
-        let quantize = |original_pixel: &Rgb<u8>| {
-            let threshold = if threshold == 0 {
-                rand::thread_rng().gen_range(1..255)
-            } else {
-                127
-            };
+    fn floyd_steinberg(pixel: &Rgb<u8>, levels: f32) -> Rgb<u8> {
+        let channel_red =
+            (((pixel.0[0] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
+        let channel_blue =
+            (((pixel.0[1] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
+        let channel_green =
+            (((pixel.0[2] as f32 / 255.0) * levels).round() / levels * 255.0).clamp(0.0, 255.0);
+        Rgb([channel_red as u8, channel_blue as u8, channel_green as u8])
+    }
 
-            if original_pixel.0[0] < threshold {
-                return Rgb([0 as u8, 0 as u8, 0 as u8]);
-            } else {
-                return Rgb([255 as u8, 255 as u8, 255 as u8]);
-            }
+    fn linear_grayscale(pixel: &Rgb<u8>) -> Rgb<u8> {
+        let grayscale: u8 = (0.2167 * pixel.0[0] as f32) as u8
+            + (0.7152 * pixel.0[1] as f32) as u8
+            + (0.0722 * pixel.0[2] as f32) as u8;
+        Rgb([grayscale, grayscale, grayscale])
+    }
+
+    fn threshold(pixel: &Rgb<u8>, threshold: u8) -> Rgb<u8> {
+        let threshold = if threshold == 0 {
+            rand::thread_rng().gen_range(1..255)
+        } else {
+            127
         };
 
-        for x in 0..self.image_width as u32 {
-            for y in 0..self.image_height as u32 {
-                let destination_pixel = self.destination_buffer.get_pixel_mut(x, y);
-                let original_pixel = self.selected_image.get_pixel(x, y);
-
-                let quantized_pixel = quantize(&original_pixel);
-
-                *destination_pixel = quantized_pixel;
-            }
+        if pixel.0[0] < threshold {
+            return Rgb([0 as u8, 0 as u8, 0 as u8]);
+        } else {
+            return Rgb([255 as u8, 255 as u8, 255 as u8]);
         }
-        &self.destination_buffer
     }
 }
 

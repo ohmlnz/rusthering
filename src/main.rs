@@ -12,6 +12,6 @@ fn main() {
         + "/dithered.jpg";
 
     let mut dither = Dithering::new(image_path);
-    let destination_buffer = dither.threshold(120);
+    let destination_buffer = dither.dithering(1);
     destination_buffer.save(destination_path).unwrap();
 }
