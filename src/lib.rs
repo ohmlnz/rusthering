@@ -23,7 +23,7 @@ impl Dithering {
         }
     }
 
-    pub fn dithering(&mut self, options: u8) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
+    pub fn dithering(&mut self, options: &str) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
         for x in 0..self.image_width as u32 {
             for y in 0..self.image_height as u32 {
                 let destination_pixel = self.destination_buffer.get_pixel_mut(x, y);
@@ -31,19 +31,19 @@ impl Dithering {
                 let quantized_pixel: Rgb<u8>;
 
                 match options {
-                    1 => {
+                    "grayscale" => {
                         quantized_pixel = Dithering::linear_grayscale(&original_pixel);
                         *destination_pixel = quantized_pixel;
                     }
-                    2 => {
-                        quantized_pixel = Dithering::threshold(&original_pixel, 127);
+                    "dithering" => {
+                        quantized_pixel = Dithering::threshold(&original_pixel, false);
                         *destination_pixel = quantized_pixel;
                     }
-                    3 => {
-                        quantized_pixel = Dithering::threshold(&original_pixel, 0);
+                    "random" => {
+                        quantized_pixel = Dithering::threshold(&original_pixel, true);
                         *destination_pixel = quantized_pixel;
                     }
-                    4 => {
+                    "floyd" => {
                         quantized_pixel = Dithering::floyd_steinberg(&original_pixel, 4.0);
                         let quantization_errors: [i32; 3] = [
                             (original_pixel.0[0] as i32 - quantized_pixel.0[0] as i32),
@@ -85,7 +85,9 @@ impl Dithering {
                         update_neighboring_pixel(0, 1, 5.0 / 16.0);
                         update_neighboring_pixel(1, 1, 1.0 / 16.0);
                     }
-                    _ => println!("Wrong input, try again."),
+                    _ => {
+                        panic!("Wrong input, please try again.");
+                    }
                 };
             }
         }
@@ -109,8 +111,8 @@ impl Dithering {
         Rgb([grayscale, grayscale, grayscale])
     }
 
-    fn threshold(pixel: &Rgb<u8>, threshold: u8) -> Rgb<u8> {
-        let threshold = if threshold == 0 {
+    fn threshold(pixel: &Rgb<u8>, rand: bool) -> Rgb<u8> {
+        let threshold = if rand {
             rand::thread_rng().gen_range(1..255)
         } else {
             127
@@ -124,27 +126,27 @@ impl Dithering {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn get_quantized_black_pixel() {
-//         let black_pixel = threshold(&Rgb([100, 0, 0]));
-//         assert_eq!(black_pixel, Rgb([0, 0, 0]));
-//     }
+    #[test]
+    fn get_quantized_black_pixel() {
+        let black_pixel = Dithering::threshold(&Rgb([100, 0, 0]), false);
+        assert_eq!(black_pixel, Rgb([0, 0, 0]));
+    }
 
-//     #[test]
-//     fn get_quantized_white_pixel() {
-//         let white_pixel = threshold(&Rgb([128, 0, 0]));
-//         assert_eq!(white_pixel, Rgb([255, 255, 255]));
-//     }
+    #[test]
+    fn get_quantized_white_pixel() {
+        let white_pixel = Dithering::threshold(&Rgb([128, 0, 0]), false);
+        assert_eq!(white_pixel, Rgb([255, 255, 255]));
+    }
 
-//     #[test]
-//     fn get_grayscale_pixel() {
-//         let grayscale_pixel = linear_grayscale(&Rgb([140, 34, 45]));
-//         assert_eq!(grayscale_pixel.0[0], grayscale_pixel.0[1]);
-//         assert_eq!(grayscale_pixel.0[1], grayscale_pixel.0[2]);
-//         assert_eq!(grayscale_pixel.0[0], grayscale_pixel.0[2]);
-//     }
-// }
+    #[test]
+    fn get_grayscale_pixel() {
+        let grayscale_pixel = Dithering::linear_grayscale(&Rgb([140, 34, 45]));
+        assert_eq!(grayscale_pixel.0[0], grayscale_pixel.0[1]);
+        assert_eq!(grayscale_pixel.0[1], grayscale_pixel.0[2]);
+        assert_eq!(grayscale_pixel.0[0], grayscale_pixel.0[2]);
+    }
+}

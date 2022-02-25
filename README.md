@@ -1,22 +1,20 @@
 ## Rusthering
 
-# A basic dithering CLI written in Rust
+A basic dithering CLI written in Rust
 
 ```console
 
 USAGE:
-    rusthering                  <INPUT> --output <OUTPUT>
+    rusthering           <INPUT> <OUTPUT> [OPTIONS] 
 
 ARGS:
-    <INPUT>                     Path to the input file
+    <SRC_PATH>           Path to the input file
+    <DEST_PATH>          Path to the output file
 
 OPTIONS:
-    -o,    --output             Path to the output file
-    -d,    --dithered           Produce a 4-bit dithered output
-    -g,    --grayscale          Produce a 8-bit grayscale output
-    -q,    --quantize           Produce a 1-bit quantized output
-    -q -r, --quantize --rand    Produce a 1-bit quantized output
-    -h,    --help               Print help information
-    -v,    --version            Print version information
+    --grayscale          Produce a 8-bit grayscale output
+    --dithering          Produce a 1-bit dithered output
+    --random             Produce a random 1-bit dithered output
+    --floyd              Produces a color dithering output
 
 ```
