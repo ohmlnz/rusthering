@@ -8,8 +8,8 @@ USAGE:
     rusthering           <INPUT> <OUTPUT> [OPTIONS] 
 
 ARGS:
-    <SRC_PATH>           Path to the input file
-    <DEST_PATH>          Path to the output file
+    <SRC_PATH>           Path to the input image
+    <DEST_PATH>          Path to the output image
 
 OPTIONS:
     --grayscale          Produce a 8-bit grayscale output
