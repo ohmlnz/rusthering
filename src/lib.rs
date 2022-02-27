@@ -31,19 +31,19 @@ impl Dithering {
                 let quantized_pixel: Rgb<u8>;
 
                 match options {
-                    "grayscale" => {
+                    "--grayscale" => {
                         quantized_pixel = Dithering::linear_grayscale(&original_pixel);
                         *destination_pixel = quantized_pixel;
                     }
-                    "dithering" => {
+                    "--dithering" => {
                         quantized_pixel = Dithering::threshold(&original_pixel, false);
                         *destination_pixel = quantized_pixel;
                     }
-                    "random" => {
+                    "--random" => {
                         quantized_pixel = Dithering::threshold(&original_pixel, true);
                         *destination_pixel = quantized_pixel;
                     }
-                    "floyd" => {
+                    "--floyd" => {
                         quantized_pixel = Dithering::floyd_steinberg(&original_pixel, 4.0);
                         let quantization_errors: [i32; 3] = [
                             (original_pixel.0[0] as i32 - quantized_pixel.0[0] as i32),
