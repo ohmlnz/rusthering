@@ -12,9 +12,9 @@ ARGS:
     <DEST_PATH>          Path to the output image
 
 OPTIONS:
-    --grayscale          Produce a 8-bit grayscale output
-    --dithering          Produce a 1-bit dithered output
-    --random             Produce a random 1-bit dithered output
-    --floyd              Produces a color dithering output
+    --grayscale          Produces a 8-bit grayscale output
+    --dithering          Produces a 1-bit grayscale dithered output
+    --random             Produces a random grayscale 1-bit dithered output
+    --floyd              Produces a colored dithered output using the Floyd–Steinberg algorithm
 
 ```
