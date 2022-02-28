@@ -1,6 +1,6 @@
 ## Rusthering
 
-A basic dithering CLI written in Rust
+A basic [dithering](https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering) CLI written in Rust
 
 ```console
 
